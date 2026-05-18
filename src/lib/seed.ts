@@ -37,7 +37,11 @@ function defaultCycleLabel(windows: CycleWindows) {
 export async function ensureSeeded() {
   if (typeof window === "undefined") return;
   const existing = loadState();
-  if (existing?.version === 1) return;
+  if (existing?.version === 2) return;
+  if (existing?.version === 1) {
+    saveState({ ...existing, version: 2, goalComments: [] });
+    return;
+  }
 
   const adminId = newId();
   const salt = randomSaltBase64();
@@ -124,7 +128,7 @@ export async function ensureSeeded() {
     title: "Increase modern trade sell-through",
     description: "Improve sell-through in top 20 modern trade stores via merchandising and promoter coverage.",
     uomType: "min",
-    target: "120",
+    target: "80",
     weightage: 30,
     isShared: false,
   });
@@ -132,8 +136,8 @@ export async function ensureSeeded() {
     thrustArea: "Operational Excellence",
     title: "Reduce service turnaround time (TAT)",
     description: "Reduce average TAT for service requests by process improvements and better routing.",
-    uomType: "max",
-    target: "72",
+    uomType: "min",
+    target: "90",
     weightage: 20,
     isShared: false,
   });
@@ -142,7 +146,7 @@ export async function ensureSeeded() {
     title: "Improve NPS",
     description: "Drive improvements in customer experience across onboarding and post-install support.",
     uomType: "min",
-    target: "60",
+    target: "70",
     weightage: 20,
     isShared: false,
   });
@@ -150,8 +154,8 @@ export async function ensureSeeded() {
     thrustArea: "Compliance",
     title: "Zero safety incidents",
     description: "Maintain zero safety incidents for the quarter.",
-    uomType: "zero",
-    target: "0",
+    uomType: "min",
+    target: "100",
     weightage: 30,
     isShared: false,
   });
@@ -161,7 +165,7 @@ export async function ensureSeeded() {
     title: "Improve marketplace rating",
     description: "Increase average product ratings by improving listing content and reducing defects.",
     uomType: "min",
-    target: "4.4",
+    target: "85",
     weightage: 40,
     isShared: false,
   });
@@ -169,8 +173,8 @@ export async function ensureSeeded() {
     thrustArea: "People",
     title: "Hire and onboard 2 associates",
     description: "Complete hiring and onboarding plan within the quarter.",
-    uomType: "timeline",
-    target: new Date().toISOString().slice(0, 10),
+    uomType: "min",
+    target: "100",
     weightage: 20,
     isShared: false,
   });
@@ -178,8 +182,8 @@ export async function ensureSeeded() {
     thrustArea: "Operational Excellence",
     title: "Reduce inventory variance",
     description: "Reduce warehouse inventory variance through cycle counts and reconciliation.",
-    uomType: "max",
-    target: "2",
+    uomType: "min",
+    target: "90",
     weightage: 40,
     isShared: false,
   });
@@ -197,8 +201,8 @@ export async function ensureSeeded() {
     thrustArea: "Operational Excellence",
     title: "Reduce cost per installation",
     description: "Optimize installation routing to reduce cost per installation.",
-    uomType: "max",
-    target: "450",
+    uomType: "min",
+    target: "88",
     weightage: 50,
     isShared: false,
   });
@@ -217,7 +221,7 @@ export async function ensureSeeded() {
   ];
 
   const state: AppState = {
-    version: 1,
+    version: 2,
     users: [admin, manager, ...employeeUsers],
     cycles: [cycle],
     activeCycleId: cycle.id,
@@ -225,6 +229,7 @@ export async function ensureSeeded() {
     sharedGoalGroups: [],
     goals,
     achievements: [],
+    goalComments: [],
     checkins,
     audit: [
       { id: newId(), entity: "user", entityId: manager.id, action: "create", at: nowIso(), actorId: admin.id },

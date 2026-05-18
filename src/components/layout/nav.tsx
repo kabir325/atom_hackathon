@@ -8,12 +8,14 @@ type NavItem = { href: string; label: string; roles: Role[] };
 
 const ITEMS: NavItem[] = [
   { href: "/dashboard", label: "Dashboard", roles: ["admin", "manager", "employee"] },
+  { href: "/notifications", label: "Notifications", roles: ["admin", "manager", "employee"] },
 
   { href: "/employee/goals", label: "My Goals", roles: ["employee"] },
   { href: "/employee/checkins", label: "My Check-ins", roles: ["employee"] },
 
   { href: "/manager/reviews", label: "Approvals", roles: ["manager"] },
   { href: "/manager/checkins", label: "Team Check-ins", roles: ["manager"] },
+  { href: "/manager/completion", label: "Completion", roles: ["manager"] },
   { href: "/manager/shared-goals", label: "Shared Goals", roles: ["manager"] },
 
   { href: "/reports/achievement", label: "Achievement Report", roles: ["admin", "manager"] },

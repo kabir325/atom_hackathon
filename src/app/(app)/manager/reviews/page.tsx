@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { useAuth } from "@/components/auth/auth-context";
 import { useAppState } from "@/components/state/use-app-state";
-import { approveGoalSheet, getGoalsForSheet, getTeamSheetsForManager, returnGoalSheet, updateGoal, validateGoals } from "@/lib/goals";
+import { addGoalComment, approveGoalSheet, getCommentsForGoal, getGoalsForSheet, getTeamSheetsForManager, returnGoalSheet, updateGoal, validateGoals } from "@/lib/goals";
 import { type GoalSheet } from "@/lib/types";
 
 export default function ManagerReviewsPage() {
@@ -11,6 +11,7 @@ export default function ManagerReviewsPage() {
   const { state, refresh } = useAppState();
   const [selectedSheetId, setSelectedSheetId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [commentsGoalId, setCommentsGoalId] = useState<string | null>(null);
 
   if (!user) return null;
   if (user.role !== "manager") {
@@ -80,6 +81,7 @@ export default function ManagerReviewsPage() {
                     <th className="py-2 pr-2">UoM</th>
                     <th className="py-2 pr-2">Target</th>
                     <th className="py-2 pr-2">Weightage</th>
+                    <th className="py-2 pr-2">Comments</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -90,7 +92,7 @@ export default function ManagerReviewsPage() {
                         <div className="text-xs text-zinc-500">{g.thrustArea}{g.isShared ? " • Shared" : ""}</div>
                       </td>
                       <td className="py-2 pr-2">
-                        <div className="text-zinc-900">{g.uomType.toUpperCase()}</div>
+                        <div className="text-zinc-900">%</div>
                       </td>
                       <td className="py-2 pr-2">
                         <input
@@ -114,11 +116,22 @@ export default function ManagerReviewsPage() {
                           }}
                         />
                       </td>
+                      <td className="py-2 pr-2">
+                        <button
+                          className="h-9 rounded-md border border-zinc-200 bg-white px-3 text-xs font-medium text-zinc-900 hover:bg-zinc-50"
+                          onClick={() => setCommentsGoalId(g.id)}
+                        >
+                          Open{" "}
+                          <span className="text-zinc-500">
+                            ({state.goalComments.filter((c) => c.goalId === g.id).length})
+                          </span>
+                        </button>
+                      </td>
                     </tr>
                   ))}
                   {goals.length === 0 ? (
                     <tr>
-                      <td className="py-6 text-sm text-zinc-600" colSpan={4}>
+                      <td className="py-6 text-sm text-zinc-600" colSpan={5}>
                         No goals in this sheet.
                       </td>
                     </tr>
@@ -162,6 +175,22 @@ export default function ManagerReviewsPage() {
           </div>
         </>
       )}
+
+      {commentsGoalId ? (
+        <CommentsDialog
+          goalId={commentsGoalId}
+          onClose={() => setCommentsGoalId(null)}
+          onSend={(message) => {
+            setError(null);
+            const res = addGoalComment({ actorId: user.id, goalId: commentsGoalId, message });
+            if (!res.ok) setError(res.error);
+            refresh();
+          }}
+          getAuthorLabel={(authorId) => state.users.find((u) => u.id === authorId)?.name ?? "User"}
+          comments={getCommentsForGoal(commentsGoalId)}
+          currentUserId={user.id}
+        />
+      ) : null}
     </div>
   );
 }
@@ -182,6 +211,76 @@ function SheetHeader(props: { sheet: GoalSheet; employeeLabel: string; validatio
           <span className={props.validationOk ? "font-semibold text-zinc-900" : "font-semibold text-amber-700"}>
             {props.validationOk ? "OK" : "Needs fixes"}
           </span>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function CommentsDialog(props: {
+  goalId: string;
+  comments: Array<{ id: string; authorId: string; message: string; createdAt: string }>;
+  currentUserId: string;
+  getAuthorLabel: (authorId: string) => string;
+  onSend: (message: string) => void;
+  onClose: () => void;
+}) {
+  const [message, setMessage] = useState("");
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+      <div className="w-full max-w-2xl rounded-2xl border border-zinc-200 bg-white p-5 shadow-sm">
+        <div className="flex items-center justify-between gap-3">
+          <div className="text-base font-semibold text-zinc-900">Goal comments</div>
+          <button className="text-sm font-semibold text-zinc-700 hover:text-zinc-900" onClick={props.onClose}>
+            Close
+          </button>
+        </div>
+
+        <div className="mt-4 max-h-[50vh] overflow-auto rounded-xl border border-zinc-200 bg-zinc-50 p-3">
+          <div className="space-y-3">
+            {props.comments.map((c) => {
+              const mine = c.authorId === props.currentUserId;
+              return (
+                <div key={c.id} className={mine ? "flex justify-end" : "flex justify-start"}>
+                  <div
+                    className={[
+                      "max-w-[80%] rounded-2xl px-3 py-2",
+                      mine ? "bg-amber-400 text-zinc-900" : "bg-white border border-zinc-200 text-zinc-900",
+                    ].join(" ")}
+                  >
+                    <div className="text-xs font-semibold opacity-80">{props.getAuthorLabel(c.authorId)}</div>
+                    <div className="mt-1 text-sm whitespace-pre-wrap">{c.message}</div>
+                    <div className="mt-1 text-[11px] opacity-70">
+                      {c.createdAt.replace("T", " ").slice(0, 19)}
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+            {props.comments.length === 0 ? <div className="text-sm text-zinc-600">No comments yet.</div> : null}
+          </div>
+        </div>
+
+        <div className="mt-4 flex items-end gap-2">
+          <textarea
+            className="min-h-[44px] flex-1 rounded-md border border-zinc-200 px-3 py-2 text-sm text-zinc-900 outline-none focus:border-amber-400 focus:ring-2 focus:ring-amber-100"
+            rows={2}
+            value={message}
+            onChange={(e) => setMessage(e.target.value)}
+            placeholder="Write a comment…"
+          />
+          <button
+            className="h-11 rounded-md bg-zinc-900 px-4 text-sm font-semibold text-white hover:bg-zinc-800"
+            onClick={() => {
+              const m = message.trim();
+              if (!m) return;
+              props.onSend(m);
+              setMessage("");
+            }}
+          >
+            Send
+          </button>
         </div>
       </div>
     </div>

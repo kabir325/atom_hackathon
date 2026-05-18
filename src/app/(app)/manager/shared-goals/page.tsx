@@ -4,7 +4,7 @@ import { useState } from "react";
 import { useAuth } from "@/components/auth/auth-context";
 import { useAppState } from "@/components/state/use-app-state";
 import { createSharedGoalGroup } from "@/lib/goals";
-import { type ThrustArea, type UomType } from "@/lib/types";
+import { type ThrustArea } from "@/lib/types";
 
 const THRUST_AREAS: ThrustArea[] = [
   "Growth",
@@ -15,13 +15,6 @@ const THRUST_AREAS: ThrustArea[] = [
   "Other",
 ];
 
-const UOM_TYPES: Array<{ value: UomType; label: string }> = [
-  { value: "min", label: "Min (Higher is better)" },
-  { value: "max", label: "Max (Lower is better)" },
-  { value: "timeline", label: "Timeline" },
-  { value: "zero", label: "Zero-based" },
-];
-
 export default function ManagerSharedGoalsPage() {
   const { user } = useAuth();
   const { state, refresh } = useAppState();
@@ -30,7 +23,6 @@ export default function ManagerSharedGoalsPage() {
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [thrustArea, setThrustArea] = useState<ThrustArea>("Operational Excellence");
-  const [uomType, setUomType] = useState<UomType>("min");
   const [target, setTarget] = useState("");
   const [primaryOwnerId, setPrimaryOwnerId] = useState<string>("");
   const [recipientEmployeeIds, setRecipientEmployeeIds] = useState<string[]>([]);
@@ -91,19 +83,8 @@ export default function ManagerSharedGoalsPage() {
           </label>
 
           <label className="flex flex-col gap-1">
-            <div className="text-sm font-medium text-zinc-700">UoM Type</div>
-            <select className="h-10 rounded-md border border-zinc-200 px-3" value={uomType} onChange={(e) => setUomType(e.target.value as UomType)}>
-              {UOM_TYPES.map((u) => (
-                <option key={u.value} value={u.value}>
-                  {u.label}
-                </option>
-              ))}
-            </select>
-          </label>
-
-          <label className="flex flex-col gap-1">
-            <div className="text-sm font-medium text-zinc-700">Target</div>
-            <input className="h-10 rounded-md border border-zinc-200 px-3" value={target} onChange={(e) => setTarget(e.target.value)} placeholder={uomType === "timeline" ? "YYYY-MM-DD" : "e.g., 120"} />
+            <div className="text-sm font-medium text-zinc-700">Target (%)</div>
+            <input className="h-10 rounded-md border border-zinc-200 px-3" value={target} onChange={(e) => setTarget(e.target.value)} placeholder="0-100" />
           </label>
 
           <label className="flex flex-col gap-1">
@@ -151,7 +132,7 @@ export default function ManagerSharedGoalsPage() {
                 title,
                 description,
                 thrustArea,
-                uomType,
+                uomType: "min",
                 target,
                 primaryOwnerId,
                 recipientEmployeeIds,
@@ -180,7 +161,7 @@ export default function ManagerSharedGoalsPage() {
             <div key={g.id} className="rounded-lg border border-zinc-200 p-4">
               <div className="font-medium text-zinc-900">{g.title}</div>
               <div className="mt-1 text-xs text-zinc-500">
-                {g.thrustArea} • {g.uomType.toUpperCase()} • Target {g.target} • Recipients {g.recipientEmployeeIds.length}
+                {g.thrustArea} • % • Target {g.target} • Recipients {g.recipientEmployeeIds.length}
               </div>
             </div>
           ))}

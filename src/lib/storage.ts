@@ -1,13 +1,13 @@
-import { type AppState } from "@/lib/types";
+import { type AppState, type AppStateV1 } from "@/lib/types";
 
 const STORAGE_KEY = "atomquest.portal.v1";
 
-export function loadState(): AppState | null {
+export function loadState(): (AppState | AppStateV1) | null {
   if (typeof window === "undefined") return null;
   const raw = window.localStorage.getItem(STORAGE_KEY);
   if (!raw) return null;
   try {
-    return JSON.parse(raw) as AppState;
+    return JSON.parse(raw) as AppState | AppStateV1;
   } catch {
     return null;
   }
@@ -22,4 +22,3 @@ export function clearState() {
   if (typeof window === "undefined") return;
   window.localStorage.removeItem(STORAGE_KEY);
 }
-

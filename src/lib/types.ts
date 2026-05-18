@@ -21,6 +21,7 @@ export type AuditEntity =
   | "cycle"
   | "goalSheet"
   | "goal"
+  | "goalComment"
   | "achievement"
   | "checkin"
   | "sharedGoalGroup";
@@ -121,6 +122,14 @@ export type Achievement = {
   updatedById: string;
 };
 
+export type GoalComment = {
+  id: string;
+  goalId: string;
+  authorId: string;
+  message: string;
+  createdAt: string;
+};
+
 export type ManagerCheckin = {
   id: string;
   employeeId: string;
@@ -150,7 +159,7 @@ export type Session = {
 };
 
 export type AppState = {
-  version: 1;
+  version: 2;
   users: User[];
   cycles: Cycle[];
   activeCycleId: string;
@@ -158,8 +167,10 @@ export type AppState = {
   sharedGoalGroups: SharedGoalGroup[];
   goals: Goal[];
   achievements: Achievement[];
+  goalComments: GoalComment[];
   checkins: ManagerCheckin[];
   audit: AuditLog[];
   session?: Session;
 };
 
+export type AppStateV1 = Omit<AppState, "version" | "goalComments"> & { version: 1 };

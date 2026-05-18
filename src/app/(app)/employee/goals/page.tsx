@@ -4,15 +4,17 @@ import { useState } from "react";
 import { useAuth } from "@/components/auth/auth-context";
 import { useAppState } from "@/components/state/use-app-state";
 import {
+  addGoalComment,
   addGoal,
   deleteGoal,
+  getCommentsForGoal,
   getGoalsForSheet,
   getOrCreateMySheet,
   submitGoalSheet,
   updateGoal,
   validateGoals,
 } from "@/lib/goals";
-import { type ThrustArea, type UomType } from "@/lib/types";
+import { type ThrustArea } from "@/lib/types";
 
 const THRUST_AREAS: ThrustArea[] = [
   "Growth",
@@ -23,18 +25,12 @@ const THRUST_AREAS: ThrustArea[] = [
   "Other",
 ];
 
-const UOM_TYPES: Array<{ value: UomType; label: string }> = [
-  { value: "min", label: "Min (Higher is better)" },
-  { value: "max", label: "Max (Lower is better)" },
-  { value: "timeline", label: "Timeline" },
-  { value: "zero", label: "Zero-based" },
-];
-
 export default function EmployeeGoalsPage() {
   const { user } = useAuth();
-  const { refresh } = useAppState();
+  const { state, refresh } = useAppState();
   const [error, setError] = useState<string | null>(null);
   const [adding, setAdding] = useState(false);
+  const [commentsGoalId, setCommentsGoalId] = useState<string | null>(null);
 
   if (!user) return null;
   if (user.role !== "employee") {
@@ -77,7 +73,7 @@ export default function EmployeeGoalsPage() {
           <div className="flex items-center gap-2">
             <div className="text-sm text-zinc-700">
               Total weightage:{" "}
-              <span className={totalWeightage === 100 ? "font-semibold text-zinc-900" : "font-semibold text-red-700"}>
+              <span className={totalWeightage <= 100 ? "font-semibold text-zinc-900" : "font-semibold text-red-700"}>
                 {totalWeightage}%
               </span>
             </div>
@@ -185,21 +181,9 @@ export default function EmployeeGoalsPage() {
                       />
                     </td>
                     <td className="py-2 pr-2">
-                      <select
-                        className="h-9 w-48 rounded-md border border-zinc-200 px-2 disabled:bg-zinc-50"
-                        disabled={!canEditRow || sharedReadOnly}
-                        value={g.uomType}
-                        onChange={(e) => {
-                          updateGoal({ actorId: user.id, goalId: g.id, patch: { uomType: e.target.value as UomType } });
-                          refresh();
-                        }}
-                      >
-                        {UOM_TYPES.map((u) => (
-                          <option key={u.value} value={u.value}>
-                            {u.label}
-                          </option>
-                        ))}
-                      </select>
+                      <div className="inline-flex h-9 items-center rounded-md border border-zinc-200 bg-zinc-50 px-3 text-sm font-semibold text-zinc-900">
+                        %
+                      </div>
                     </td>
                     <td className="py-2 pr-2">
                       <input
@@ -210,7 +194,7 @@ export default function EmployeeGoalsPage() {
                           updateGoal({ actorId: user.id, goalId: g.id, patch: { target: e.target.value } });
                           refresh();
                         }}
-                        placeholder={g.uomType === "timeline" ? "YYYY-MM-DD" : "e.g., 120"}
+                        placeholder="Target % (0-100)"
                       />
                     </td>
                     <td className="py-2 pr-2">
@@ -227,6 +211,15 @@ export default function EmployeeGoalsPage() {
                     </td>
                     <td className="py-2 pr-2">
                       <div className="flex items-center gap-2">
+                        <button
+                          className="h-9 rounded-md border border-zinc-200 px-3 text-xs hover:bg-zinc-50"
+                          onClick={() => setCommentsGoalId(g.id)}
+                        >
+                          Comments{" "}
+                          <span className="text-zinc-500">
+                            ({state.goalComments.filter((c) => c.goalId === g.id).length})
+                          </span>
+                        </button>
                         <button
                           className="h-9 rounded-md border border-zinc-200 px-3 text-xs hover:bg-zinc-50 disabled:opacity-50"
                           disabled={!canEditRow || g.isShared}
@@ -276,6 +269,95 @@ export default function EmployeeGoalsPage() {
           }}
         />
       ) : null}
+
+      {commentsGoalId ? (
+        <CommentsDialog
+          goalId={commentsGoalId}
+          onClose={() => setCommentsGoalId(null)}
+          onSend={(message) => {
+            const res = addGoalComment({ actorId: user.id, goalId: commentsGoalId, message });
+            if (!res.ok) setError(res.error);
+            refresh();
+          }}
+          getAuthorLabel={(authorId) => state.users.find((u) => u.id === authorId)?.name ?? "User"}
+          comments={getCommentsForGoal(commentsGoalId)}
+          currentUserId={user.id}
+        />
+      ) : null}
+    </div>
+  );
+}
+
+function CommentsDialog(props: {
+  goalId: string;
+  comments: Array<{ id: string; authorId: string; message: string; createdAt: string }>;
+  currentUserId: string;
+  getAuthorLabel: (authorId: string) => string;
+  onSend: (message: string) => void;
+  onClose: () => void;
+}) {
+  const [message, setMessage] = useState("");
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+      <div className="w-full max-w-2xl rounded-2xl border border-zinc-200 bg-white p-5 shadow-sm">
+        <div className="flex items-center justify-between gap-3">
+          <div className="text-base font-semibold text-zinc-900">Goal comments</div>
+          <button className="text-sm font-semibold text-zinc-700 hover:text-zinc-900" onClick={props.onClose}>
+            Close
+          </button>
+        </div>
+
+        <div className="mt-4 max-h-[50vh] overflow-auto rounded-xl border border-zinc-200 bg-zinc-50 p-3">
+          <div className="space-y-3">
+            {props.comments.map((c) => {
+              const mine = c.authorId === props.currentUserId;
+              return (
+                <div key={c.id} className={mine ? "flex justify-end" : "flex justify-start"}>
+                  <div
+                    className={[
+                      "max-w-[80%] rounded-2xl px-3 py-2",
+                      mine ? "bg-amber-400 text-zinc-900" : "bg-white border border-zinc-200 text-zinc-900",
+                    ].join(" ")}
+                  >
+                    <div className="text-xs font-semibold opacity-80">
+                      {props.getAuthorLabel(c.authorId)}
+                    </div>
+                    <div className="mt-1 text-sm whitespace-pre-wrap">{c.message}</div>
+                    <div className="mt-1 text-[11px] opacity-70">
+                      {c.createdAt.replace("T", " ").slice(0, 19)}
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+            {props.comments.length === 0 ? (
+              <div className="text-sm text-zinc-600">No comments yet.</div>
+            ) : null}
+          </div>
+        </div>
+
+        <div className="mt-4 flex items-end gap-2">
+          <textarea
+            className="min-h-[44px] flex-1 rounded-md border border-zinc-200 px-3 py-2 text-sm text-zinc-900 outline-none focus:border-amber-400 focus:ring-2 focus:ring-amber-100"
+            rows={2}
+            value={message}
+            onChange={(e) => setMessage(e.target.value)}
+            placeholder="Write a comment…"
+          />
+          <button
+            className="h-11 rounded-md bg-zinc-900 px-4 text-sm font-semibold text-white hover:bg-zinc-800"
+            onClick={() => {
+              const m = message.trim();
+              if (!m) return;
+              props.onSend(m);
+              setMessage("");
+            }}
+          >
+            Send
+          </button>
+        </div>
+      </div>
     </div>
   );
 }
@@ -286,7 +368,7 @@ function AddGoalDialog(props: {
     thrustArea: ThrustArea;
     title: string;
     description: string;
-    uomType: UomType;
+    uomType: "min";
     target: string;
     weightage: number;
   }) => void;
@@ -294,7 +376,6 @@ function AddGoalDialog(props: {
   const [thrustArea, setThrustArea] = useState<ThrustArea>("Growth");
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
-  const [uomType, setUomType] = useState<UomType>("min");
   const [target, setTarget] = useState("");
   const [weightage, setWeightage] = useState(10);
 
@@ -344,27 +425,12 @@ function AddGoalDialog(props: {
           </label>
 
           <label className="flex flex-col gap-1">
-            <div className="text-sm font-medium text-zinc-700">UoM Type</div>
-            <select
-              className="h-10 rounded-md border border-zinc-200 px-3"
-              value={uomType}
-              onChange={(e) => setUomType(e.target.value as UomType)}
-            >
-              {UOM_TYPES.map((u) => (
-                <option key={u.value} value={u.value}>
-                  {u.label}
-                </option>
-              ))}
-            </select>
-          </label>
-
-          <label className="flex flex-col gap-1">
-            <div className="text-sm font-medium text-zinc-700">Target</div>
+            <div className="text-sm font-medium text-zinc-700">Target (%)</div>
             <input
               className="h-10 rounded-md border border-zinc-200 px-3"
               value={target}
               onChange={(e) => setTarget(e.target.value)}
-              placeholder={uomType === "timeline" ? "YYYY-MM-DD" : "e.g., 120"}
+              placeholder="0-100"
             />
           </label>
 
@@ -385,7 +451,7 @@ function AddGoalDialog(props: {
           <button
             className="h-10 rounded-md bg-zinc-900 px-4 text-sm font-medium text-white hover:bg-zinc-800"
             onClick={() =>
-              props.onCreate({ thrustArea, title, description, uomType, target, weightage })
+              props.onCreate({ thrustArea, title, description, uomType: "min", target, weightage })
             }
           >
             Create

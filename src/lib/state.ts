@@ -6,6 +6,9 @@ export function getState(): AppState {
   if (!state) {
     throw new Error("State not initialized");
   }
+  if (state.version !== 2) {
+    throw new Error("State version not supported");
+  }
   return state;
 }
 
@@ -19,4 +22,3 @@ export function updateState(updater: (prev: AppState) => AppState) {
   saveState(next);
   return next;
 }
-

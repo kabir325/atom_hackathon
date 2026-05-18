@@ -4,12 +4,17 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import Nav from "@/components/layout/nav";
 import { useAuth } from "@/components/auth/auth-context";
+import { useAppState } from "@/components/state/use-app-state";
+import { buildNotifications, countUnread, getLastSeenAt } from "@/lib/notifications";
 
 export default function AppShell({ children }: { children: React.ReactNode }) {
   const { user, logout } = useAuth();
+  const { state } = useAppState();
   const router = useRouter();
 
   if (!user) return null;
+  const notifications = buildNotifications(state, user.id, user.role);
+  const unread = countUnread(notifications, getLastSeenAt(user.id));
 
   return (
     <div className="flex flex-1 min-h-full bg-[linear-gradient(180deg,#ffffff_0%,#f8fafc_60%,#f8fafc_100%)]">
@@ -78,6 +83,17 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
               className="inline-flex rounded-xl border border-zinc-200 bg-white px-3 py-2 text-sm font-semibold text-zinc-900 hover:bg-zinc-50 max-md:px-2 max-md:text-xs"
             >
               Settings
+            </Link>
+            <Link
+              href="/notifications"
+              className="inline-flex items-center gap-2 rounded-xl border border-zinc-200 bg-white px-3 py-2 text-sm font-semibold text-zinc-900 hover:bg-zinc-50 max-md:px-2 max-md:text-xs"
+            >
+              <span>Notifications</span>
+              {unread > 0 ? (
+                <span className="min-w-[20px] rounded-full bg-amber-400 px-2 py-0.5 text-xs font-bold text-zinc-900 text-center">
+                  {unread}
+                </span>
+              ) : null}
             </Link>
             <button
               className="inline-flex rounded-xl bg-zinc-900 px-3 py-2 text-sm font-semibold text-white hover:bg-zinc-800 max-md:px-2 max-md:text-xs"

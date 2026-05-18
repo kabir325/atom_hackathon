@@ -4,6 +4,7 @@ import { newId, nowIso } from "@/lib/id";
 import { getState, updateState } from "@/lib/state";
 import {
   type Goal,
+  type GoalComment,
   type GoalSheet,
   type GoalSheetStatus,
   type SharedGoalGroup,
@@ -50,16 +51,20 @@ export function validateGoals(goals: Goal[]) {
   if (goals.length > 8) errors.push("Maximum 8 goals allowed");
 
   const total = goals.reduce((sum, g) => sum + (Number.isFinite(g.weightage) ? g.weightage : 0), 0);
-  if (total !== 100) errors.push("Total weightage must equal 100%");
-
-  const minViolations = goals.filter((g) => g.weightage < 10);
-  if (minViolations.length > 0) errors.push("Each goal must have at least 10% weightage");
+  if (total > 100) errors.push("Total weightage must not exceed 100%");
+  if (total <= 0) errors.push("Total weightage must be greater than 0%");
 
   const emptyTitles = goals.filter((g) => !g.title.trim());
   if (emptyTitles.length > 0) errors.push("Each goal must have a title");
 
   const emptyTargets = goals.filter((g) => !g.target.trim());
   if (emptyTargets.length > 0) errors.push("Each goal must have a target");
+
+  const invalidTargets = goals.filter((g) => {
+    const n = Number(g.target);
+    return !Number.isFinite(n) || n < 0 || n > 100;
+  });
+  if (invalidTargets.length > 0) errors.push("Targets must be a % between 0 and 100");
 
   return { ok: errors.length === 0, errors };
 }
@@ -374,6 +379,12 @@ export function createSharedGoalGroup(params: {
 
   if (!params.title.trim()) return { ok: false as const, error: "Title is required" };
   if (!params.target.trim()) return { ok: false as const, error: "Target is required" };
+  {
+    const n = Number(params.target);
+    if (!Number.isFinite(n) || n < 0 || n > 100) {
+      return { ok: false as const, error: "Target must be a % between 0 and 100" };
+    }
+  }
   if (params.recipientEmployeeIds.length === 0) {
     return { ok: false as const, error: "Select at least 1 recipient" };
   }
@@ -385,7 +396,7 @@ export function createSharedGoalGroup(params: {
     title: params.title,
     description: params.description,
     thrustArea: params.thrustArea,
-    uomType: params.uomType,
+    uomType: "min",
     target: params.target,
     primaryOwnerId: params.primaryOwnerId,
     recipientEmployeeIds: params.recipientEmployeeIds,
@@ -429,7 +440,12 @@ export function createSharedGoalGroup(params: {
     entityId: group.id,
     action: "create",
     actorId: params.actorId,
-    meta: { employeeCount: allEmployeeIds.length },
+    meta: {
+      title: group.title,
+      primaryOwnerId: group.primaryOwnerId,
+      recipientEmployeeIds: group.recipientEmployeeIds,
+      employeeCount: allEmployeeIds.length,
+    },
   });
 
   return { ok: true as const, group };
@@ -444,4 +460,54 @@ export function getTeamSheetsForManager(managerId: string) {
 export function getSheetById(sheetId: string) {
   const state = getState();
   return state.goalSheets.find((s) => s.id === sheetId) ?? null;
+}
+
+export function getCommentsForGoal(goalId: string) {
+  const state = getState();
+  return state.goalComments
+    .filter((c) => c.goalId === goalId)
+    .slice()
+    .sort((a, b) => a.createdAt.localeCompare(b.createdAt));
+}
+
+export function addGoalComment(params: { actorId: string; goalId: string; message: string }) {
+  const state = getState();
+  const actor = state.users.find((u) => u.id === params.actorId);
+  if (!actor) return { ok: false as const, error: "Actor not found" };
+
+  const goal = state.goals.find((g) => g.id === params.goalId);
+  if (!goal) return { ok: false as const, error: "Goal not found" };
+
+  const sheet = state.goalSheets.find((s) => s.id === goal.sheetId);
+  if (!sheet) return { ok: false as const, error: "Goal sheet not found" };
+
+  const msg = params.message.trim();
+  if (!msg) return { ok: false as const, error: "Message is required" };
+
+  if (actor.role === "employee" && sheet.employeeId !== actor.id) {
+    return { ok: false as const, error: "Not allowed" };
+  }
+  if (actor.role === "manager" && sheet.managerId !== actor.id) {
+    return { ok: false as const, error: "Not allowed" };
+  }
+
+  const comment: GoalComment = {
+    id: newId(),
+    goalId: goal.id,
+    authorId: actor.id,
+    message: msg,
+    createdAt: nowIso(),
+  };
+
+  updateState((prev) => ({ ...prev, goalComments: [...prev.goalComments, comment] }));
+
+  appendAudit({
+    entity: "goalComment",
+    entityId: comment.id,
+    action: "create",
+    actorId: actor.id,
+    meta: { goalId: goal.id, sheetId: sheet.id },
+  });
+
+  return { ok: true as const, comment };
 }

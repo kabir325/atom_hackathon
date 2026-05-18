@@ -17,6 +17,14 @@ export function upsertAchievement(params: {
     return { ok: false as const, error: "Check-in window is not open yet" };
   }
 
+  const trimmedActual = params.actual.trim();
+  if (trimmedActual) {
+    const n = Number(trimmedActual);
+    if (!Number.isFinite(n) || n < 0 || n > 100) {
+      return { ok: false as const, error: "Actual must be a % between 0 and 100" };
+    }
+  }
+
   const goal = state.goals.find((g) => g.id === params.goalId);
   if (!goal) return { ok: false as const, error: "Goal not found" };
 
@@ -167,4 +175,3 @@ export function getAchievement(goalId: string, quarter: Quarter) {
   const state = getState();
   return state.achievements.find((a) => a.goalId === goalId && a.quarter === quarter) ?? null;
 }
-

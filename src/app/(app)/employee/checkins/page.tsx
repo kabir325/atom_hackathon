@@ -121,7 +121,7 @@ export default function EmployeeCheckinsPage() {
                         if (!res.ok) setError(res.error);
                         refresh();
                       }}
-                      placeholder={g.uomType === "timeline" ? "YYYY-MM-DD" : "e.g., 95"}
+                      placeholder="Actual % (0-100)"
                     />
                     {!canEditActual ? (
                       <div className="mt-1 text-xs text-zinc-500">Primary owner updates this shared goal.</div>
