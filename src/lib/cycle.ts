@@ -35,7 +35,8 @@ export function getCurrentQuarter(cycle: Cycle, now = new Date()): Quarter | nul
     { q: "Q2", start: q2 },
     { q: "Q3", start: q3 },
     { q: "Q4", start: q4 },
-  ].sort((a, b) => a.start - b.start);
+  ];
+  order.sort((a, b) => a.start - b.start);
 
   const latest = order.filter((x) => x.start <= t).at(-1);
   return latest?.q ?? null;
@@ -95,4 +96,3 @@ export function setActiveCycle(params: { actorId: string; cycleId: string }) {
   });
   return { ok: true as const };
 }
-

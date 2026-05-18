@@ -95,7 +95,7 @@ export default function ManagerReviewsPage() {
                       <td className="py-2 pr-2">
                         <input
                           className="h-9 w-40 rounded-md border border-zinc-200 px-2 disabled:bg-zinc-50"
-                          disabled={selected.lockedAt || selected.status !== "submitted" || g.isShared}
+                          disabled={Boolean(selected.lockedAt) || selected.status !== "submitted" || g.isShared}
                           value={g.target}
                           onChange={(e) => {
                             updateGoal({ actorId: user.id, goalId: g.id, patch: { target: e.target.value } });
@@ -106,7 +106,7 @@ export default function ManagerReviewsPage() {
                       <td className="py-2 pr-2">
                         <input
                           className="h-9 w-24 rounded-md border border-zinc-200 px-2 disabled:bg-zinc-50"
-                          disabled={selected.lockedAt || selected.status !== "submitted"}
+                          disabled={Boolean(selected.lockedAt) || selected.status !== "submitted"}
                           value={String(g.weightage)}
                           onChange={(e) => {
                             updateGoal({ actorId: user.id, goalId: g.id, patch: { weightage: Number(e.target.value) } });
